@@ -1,0 +1,10 @@
+{
+  "name": "rgu-crm-root",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "preinstall": "cd backend && npm install",
+    "build": "echo 'Building backend...'",
+    "start": "cd backend && node index.js"
+  }
+}
