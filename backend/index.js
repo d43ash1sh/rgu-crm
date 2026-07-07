@@ -106,25 +106,31 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey123';
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
-    // Ensure default admin exists and is not locked out of password auth
-    const hasDefaultAdmin = await Admin.findOne({ email: 'admin@asf.rgu' });
-    if (!hasDefaultAdmin) {
-      const defaultAdmin = new Admin({ 
-        email: 'admin@asf.rgu', 
-        password: 'password123',
-        passkeyRegistered: false 
-      });
-      await defaultAdmin.save();
-      console.log('Default admin created: admin@asf.rgu / password123');
-    } else if (hasDefaultAdmin.passkeyRegistered) {
-      // Reset passkey block on startup to prevent lockout for seed account
-      hasDefaultAdmin.passkeyRegistered = false;
-      hasDefaultAdmin.passkeyCredentialID = null;
-      hasDefaultAdmin.passkeyPublicKey = null;
-      hasDefaultAdmin.lockUntil = null;
-      hasDefaultAdmin.loginAttempts = 0;
-      await hasDefaultAdmin.save();
-      console.log('Seed admin passkey status reset to prevent lockout.');
+    // Ensure default admins exist and are not locked out of password auth
+    const adminsToSeed = [
+      { email: 'admin@asf.rgu', password: 'password123' },
+      { email: 'debashish@admin.com', password: 'deba5767' }
+    ];
+    for (const a of adminsToSeed) {
+      const hasAdmin = await Admin.findOne({ email: a.email });
+      if (!hasAdmin) {
+        const newAdmin = new Admin({ 
+          email: a.email, 
+          password: a.password,
+          passkeyRegistered: false 
+        });
+        await newAdmin.save();
+        console.log(`Admin created: ${a.email}`);
+      } else if (hasAdmin.passkeyRegistered) {
+        // Reset passkey block on startup to prevent lockout for seed account
+        hasAdmin.passkeyRegistered = false;
+        hasAdmin.passkeyCredentialID = null;
+        hasAdmin.passkeyPublicKey = null;
+        hasAdmin.lockUntil = null;
+        hasAdmin.loginAttempts = 0;
+        await hasAdmin.save();
+        console.log(`Admin passkey status reset to prevent lockout for: ${a.email}`);
+      }
     }
 
     // Ensure seed student members exist
