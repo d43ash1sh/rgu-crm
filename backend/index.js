@@ -106,12 +106,25 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey123';
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
-    // Ensure default admin exists
-    const adminCount = await Admin.countDocuments();
-    if (adminCount === 0) {
-      const defaultAdmin = new Admin({ email: 'admin@asf.rgu', password: 'password123' });
+    // Ensure default admin exists and is not locked out of password auth
+    const hasDefaultAdmin = await Admin.findOne({ email: 'admin@asf.rgu' });
+    if (!hasDefaultAdmin) {
+      const defaultAdmin = new Admin({ 
+        email: 'admin@asf.rgu', 
+        password: 'password123',
+        passkeyRegistered: false 
+      });
       await defaultAdmin.save();
       console.log('Default admin created: admin@asf.rgu / password123');
+    } else if (hasDefaultAdmin.passkeyRegistered) {
+      // Reset passkey block on startup to prevent lockout for seed account
+      hasDefaultAdmin.passkeyRegistered = false;
+      hasDefaultAdmin.passkeyCredentialID = null;
+      hasDefaultAdmin.passkeyPublicKey = null;
+      hasDefaultAdmin.lockUntil = null;
+      hasDefaultAdmin.loginAttempts = 0;
+      await hasDefaultAdmin.save();
+      console.log('Seed admin passkey status reset to prevent lockout.');
     }
 
     // Ensure seed student members exist
