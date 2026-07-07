@@ -3,7 +3,16 @@ import bcrypt from 'bcryptjs';
 
 const adminSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
+  password: { type: String, required: true },
+  loginAttempts: { type: Number, required: true, default: 0 },
+  lockUntil: { type: Date },
+  
+  // Passkey (WebAuthn)
+  passkeyRegistered: { type: Boolean, default: false },
+  passkeyCredentialID: { type: String }, // Base64URL
+  passkeyPublicKey: { type: String },    // Base64URL
+  passkeyCounter: { type: Number, default: 0 },
+  currentChallenge: { type: String }
 });
 
 adminSchema.pre('save', async function() {

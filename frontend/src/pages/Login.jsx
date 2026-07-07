@@ -1,15 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginAdmin } from '../api';
+import { loginAdmin, checkAuth, getLoginOptions, verifyLoginPasskey } from '../api';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Fingerprint, Shield } from 'lucide-react';
+import { startAuthentication } from '@simplewebauthn/browser';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [passkeyRegistered, setPasskeyRegistered] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    checkAuth()
+      .then(data => {
+        if (data.authenticated) {
+          navigate('/admin', { replace: true });
+        } else {
+          setPasskeyRegistered(data.passkeyRegistered);
+        }
+      })
+      .catch((err) => {
+        console.error("Auth check failed:", err);
+      })
+      .finally(() => {
+        setChecking(false);
+      });
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -17,101 +38,183 @@ export default function Login() {
     setLoading(true);
     try {
       await loginAdmin(email, password);
-      navigate('/admin/cms');
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/admin');
+      }, 1000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed. Check credentials or database connection.');
+      setError(err.response?.data?.message || 'Incorrect username or password.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePasskeyLogin = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const options = await getLoginOptions();
+      const assertionResponse = await startAuthentication({ optionsJSON: options });
+      const verification = await verifyLoginPasskey(assertionResponse);
+      
+      if (verification.verified) {
+        setSuccess(true);
+        setTimeout(() => {
+          navigate('/admin');
+        }, 1000);
+      } else {
+        setError('Passkey verification failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Passkey verification failed or cancelled.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f6f8fa]">
+        <div className="w-8 h-8 border-4 border-[#0969da] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f9f9ff] relative overflow-hidden font-body antialiased selection:bg-primary/20 selection:text-primary">
-      {/* Dynamic Background */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(#737686 0.5px, transparent 0.5px)", backgroundSize: "32px 32px" }}></div>
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] -mr-96 -mt-96"></div>
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-tertiary/5 rounded-full blur-[100px] -ml-64 -mb-64"></div>
+    <div className="min-h-screen bg-[#f6f8fa] flex flex-col items-center pt-8 pb-12 px-4 font-body antialiased selection:bg-[#0969da]/20 text-[#24292f]">
+      {/* Centered Logo */}
+      <div className="mb-6 flex justify-center">
+        <a href="/" className="hover:scale-105 transition-transform duration-250">
+          <img src="/logo.png" alt="RGUASF Logo" className="w-[48px] h-[48px] rounded-lg shadow-sm border border-slate-200" />
+        </a>
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
-      >
-        <div className="bg-white/70 backdrop-blur-3xl p-12 rounded-[2.5rem] shadow-[0_32px_120px_rgba(3,85,211,0.08)] border border-white/50">
-          <div className="text-center mb-12">
-            <div className="inline-flex p-4 bg-primary text-white rounded-2xl shadow-xl shadow-primary/20 mb-6 scale-95 group-hover:scale-100 transition-transform">
-               <ShieldCheck size={32} />
+      {/* Main Header */}
+      <h1 className="text-2xl font-light tracking-tight text-center mb-4">
+        {passkeyRegistered ? 'Verify your identity' : 'Sign in to RGU Students\' Forum'}
+      </h1>
+
+      {/* Outer Card Wrapper */}
+      <div className="w-full max-w-[340px]">
+        {/* Error Feedback */}
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-4 bg-[#ffebe9] border border-[#ffc1c0] text-[#cf222e] text-sm rounded-md flex items-start gap-2.5 leading-relaxed font-sans"
+          >
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </motion.div>
+        )}
+
+        {/* Success Feedback */}
+        {success && (
+          <motion.div 
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-4 bg-[#dafbe1] border border-[#aef1b9] text-[#1a7f37] text-sm rounded-md flex items-start gap-2.5 leading-relaxed font-sans"
+          >
+            <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
+            <span>Identity verified. Access granted.</span>
+          </motion.div>
+        )}
+
+        {/* GitHub-style White Card */}
+        <div className="bg-white border border-[#d8dee4] p-5 rounded-md shadow-sm">
+          {passkeyRegistered ? (
+            <div className="space-y-4 text-center">
+              <div className="flex justify-center mb-2">
+                <div className="p-3 bg-[#f6f8fa] text-[#57606a] rounded-full border border-[#d8dee4]">
+                  <Fingerprint size={28} className="animate-pulse text-[#0969da]" />
+                </div>
+              </div>
+              <p className="text-xs text-[#57606a] leading-relaxed">
+                Biometric security shield is active. Use your passkey (Touch ID, Face ID, or Windows Hello) to sign in.
+              </p>
+              
+              <button 
+                onClick={handlePasskeyLogin}
+                disabled={loading || success}
+                className="w-full bg-[#2da44e] hover:bg-[#2c974b] disabled:bg-[#94d3a2] text-white py-2 px-4 border border-[rgba(27,31,36,0.15)] rounded-md font-semibold text-sm shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    Sign in with a passkey
+                    <Fingerprint size={16} />
+                  </>
+                )}
+              </button>
             </div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Gatekeeper</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">Secure Administration Portal</p>
-          </div>
-
-          {error && (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="mb-8 p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-xl flex items-center gap-3"
-            >
-              <AlertCircle size={18} />
-              {error}
-            </motion.div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Identity</label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-normal mb-1.5 text-[#24292f]">
+                  Username or email address
+                </label>
                 <input 
                   type="email" 
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none placeholder:text-slate-300"
+                  className="w-full px-3 py-1.5 bg-[#f6f8fa] border border-[#d0d7de] rounded-md text-sm outline-none focus:bg-white focus:border-[#0969da] focus:ring-[3px] focus:ring-[#0969da]/20 transition-all font-sans text-[#24292f]"
                   placeholder="admin@asf.rgu"
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Access Phrase</label>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-error transition-colors" size={18} />
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-sm font-normal text-[#24292f]">
+                    Password
+                  </label>
+                </div>
                 <input 
                   type="password" 
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-error/20 transition-all outline-none placeholder:text-slate-300"
+                  className="w-full px-3 py-1.5 bg-[#f6f8fa] border border-[#d0d7de] rounded-md text-sm outline-none focus:bg-white focus:border-[#0969da] focus:ring-[3px] focus:ring-[#0969da]/20 transition-all font-sans text-[#24292f]"
                   placeholder="••••••••"
                 />
               </div>
-            </div>
 
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-slate-900/10 hover:bg-primary transition-all hover:shadow-primary/30 flex items-center justify-center gap-3 group disabled:opacity-50"
-            >
-              {loading ? (
-                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  Establish Connection
-                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
-          </form>
-
-          <p className="text-center mt-12 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            © 2025 Assam Students Forum • Unit RGU
-          </p>
+              <button 
+                type="submit" 
+                disabled={loading || success}
+                className="w-full bg-[#2da44e] hover:bg-[#2c974b] disabled:bg-[#94d3a2] text-white py-2 px-4 border border-[rgba(27,31,36,0.15)] rounded-md font-semibold text-sm shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  'Sign in'
+                )}
+              </button>
+            </form>
+          )}
         </div>
-      </motion.div>
+
+        {/* Footer info box (GitHub styled) */}
+        {!passkeyRegistered && (
+          <div className="mt-4 p-4 border border-[#d8dee4] rounded-md text-center bg-[#f6f8fa]">
+            <p className="text-xs text-[#57606a]">
+              Passkey authentication not configured. Sign in to register biometric access.
+            </p>
+          </div>
+        )}
+
+        {/* Bottom Footer Links */}
+        <div className="mt-8 text-center text-xs text-[#57606a] space-y-4">
+          <div className="flex justify-center gap-3">
+            <a href="/terms" className="hover:text-[#0969da] hover:underline">Terms</a>
+            <a href="/privacy" className="hover:text-[#0969da] hover:underline">Privacy</a>
+            <a href="/security" className="hover:text-[#0969da] hover:underline">Security</a>
+            <a href="/contact" className="hover:text-[#0969da] hover:underline">Contact Forum</a>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ export default function Footer() {
           <a className="text-slate-500 hover:text-blue-600 hover:underline decoration-2 underline-offset-4 font-inter text-xs tracking-widest uppercase transition-colors" href="https://www.facebook.com/groups/698892873526421/" target="_blank" rel="noreferrer">
             Facebook
           </a>
-          <a className="text-slate-500 hover:text-blue-600 hover:underline decoration-2 underline-offset-4 font-inter text-xs tracking-widest uppercase transition-colors" href="#" target="_blank" rel="noreferrer">
+          <a className="text-slate-500 hover:text-blue-600 hover:underline decoration-2 underline-offset-4 font-inter text-xs tracking-widest uppercase transition-colors" href="https://t.me/+qPDZ1p6yLrVkNGFl" target="_blank" rel="noreferrer">
             Telegram
           </a>
         </div>
@@ -28,14 +28,10 @@ export default function Footer() {
           <p className="text-slate-400 font-inter text-xs tracking-widest uppercase md:text-right">
             © 2025 Assam Students’ Forum, RGU.
           </p>
+          <p className="text-slate-400 font-inter text-[10px] tracking-widest uppercase md:text-right mt-1.5">
+            made by ❤️ <a href="https://d43ash1sh.github.io/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-800 transition-colors font-bold normal-case">debashish</a>
+          </p>
         </div>
-      </div>
-      <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-slate-200">
-        <p className="text-slate-400 font-medium text-sm tracking-wide text-center">
-          <a href="https://www.instagram.com/debashishbordoloi007" target="_blank" rel="noreferrer" className="hover:text-blue-500 hover:underline transition-colors">
-            made by ❤️ debashish
-          </a>
-        </p>
       </div>
     </footer>
   );
